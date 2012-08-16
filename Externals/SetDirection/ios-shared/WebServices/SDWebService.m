@@ -79,6 +79,8 @@
 	serviceSpecification = nil;
     singleRequests = nil;
     normalRequests = nil;
+    [networkActivityTimer invalidate];
+    networkActivityTimer = nil;
 }
 
 - (BOOL)responseIsValid:(NSString *)response forRequest:(NSString *)requestName
@@ -169,36 +171,38 @@
     return result;
 }
 
-- (void)showNetworkActivityIfNeeded
-{
-    if (requestCount > 0)
-        [UIApplication sharedApplication].networkActivityIndicatorVisible = YES;
+- (BOOL)networkActivityVisible {
+    return requestCount > 0;
 }
 
-- (void)hideNetworkActivity
-{
-    [UIApplication sharedApplication].networkActivityIndicatorVisible = NO;
+- (void)updateNetworkActivity {
+    [UIApplication sharedApplication].networkActivityIndicatorVisible = [self networkActivityVisible];
 }
 
-- (void)hideNetworkActivityIfNeeded
-{
-    if (requestCount <= 0)
-    {
-        requestCount = 0;
-        [self performSelector:@selector(hideNetworkActivity) withObject:nil afterDelay:0.5];
+- (void)updateNetworkActivityDelayed {
+    if (![self networkActivityVisible]) {
+        [networkActivityTimer invalidate];
+        networkActivityTimer = [NSTimer timerWithTimeInterval:0.17 target:self selector:@selector(updateNetworkActivity) userInfo:nil repeats:NO];
+        [[NSRunLoop mainRunLoop] addTimer:networkActivityTimer forMode:NSRunLoopCommonModes];
+    } else {
+        [self performSelectorOnMainThread:@selector(updateNetworkActivity) withObject:nil waitUntilDone:NO modes:[NSArray arrayWithObject:NSRunLoopCommonModes]];
     }
 }
 
 - (void)incrementRequests
 {
-    requestCount++;
-    [self showNetworkActivityIfNeeded];
+    @synchronized(self) {
+        requestCount++;
+    }
+    [self updateNetworkActivityDelayed];
 }
 
 - (void)decrementRequests
 {
-	requestCount--;
-	[self hideNetworkActivityIfNeeded];
+    @synchronized(self) {
+        requestCount--;
+    }
+    [self updateNetworkActivityDelayed];
 }
 
 - (NSString *)responseFromData:(NSData *)data

@@ -44,7 +44,8 @@ enum
     NSLock *dictionaryLock;
 
 	NSDictionary *serviceSpecification;
-    NSUInteger requestCount;
+    NSInteger requestCount;
+    NSTimer *networkActivityTimer;
     NSOperationQueue *dataProcessingQueue;
 }
 
